@@ -1,0 +1,53 @@
+# Docker Compose configuration for Mesa Security application
+#Docker compose file which itself builds the images and deploys the containers
+
+version: '3.8'
+
+services:
+  # Frontend service  
+  mesa-frontend:
+    platform: linux/arm64/v8
+    build:
+      context: ./mesa-frontend #directory path of frontend dockerfile
+      dockerfile: Dockerfile
+    container_name: mesa-frontend
+    ports:
+      - "3000:80"   
+    networks:
+      - mesa-network
+    depends_on:
+      - mesa-backend  # Ensure backend starts before frontend
+    restart: unless-stopped
+
+  # Backend service - NestJS API server
+  mesa-backend:
+    build:
+      context: ./mesa-backend  #directory path of backend dockerfile
+      dockerfile: Dockerfile
+    container_name: mesa-backend
+
+    environment:
+      TYPEORM_DATA_SOURCE: /app/dist/db/typeorm.config.js
+
+    ports:
+      - "3003:3003"  
+    env_file:
+      - ./mesa-backend/.env  # Load environment variables from .env file
+    networks:
+      - mesa-network
+    restart: unless-stopped
+
+  # Redis service 
+  mesa-redis:
+    image: redis:alpine  
+    container_name: mesa-redis
+    ports:
+      - "6379:6379"  # Standard Redis port
+    networks:
+      - mesa-network
+    restart: unless-stopped
+
+# Custom network for inter-service communication
+networks:
+  mesa-network:
+    driver: bridge
