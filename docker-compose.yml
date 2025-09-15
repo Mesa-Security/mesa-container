@@ -1,0 +1,67 @@
+# docker-compose.hub.yml
+# Use Docker Hub images instead of local builds
+
+services:
+  mesa-frontend:
+    image: shubhammesa/mesa-frontend:latest
+    # If image isn't multi-arch and you're on Apple Silicon, uncomment:
+    # platform: linux/arm64/v8
+    container_name: mesa-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - mesa-network
+    depends_on:
+      - mesa-backend
+    restart: unless-stopped
+    pull_policy: always
+
+  mesa-backend:
+    image: shubhammesa/mesa-backend:latest
+    container_name: mesa-backend
+    environment:
+      TYPEORM_DATA_SOURCE: /app/dist/db/typeorm.config.js
+    env_file:
+      - ../mesa-backend/.env
+    ports:
+      - "3003:3003"
+    networks:
+      - mesa-network
+    restart: unless-stopped
+    pull_policy: always
+
+  mesa-redis:
+    image: redis:alpine
+    container_name: mesa-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mesa-network
+    restart: unless-stopped
+  
+  nginx:
+    image: nginx:alpine
+    container_name: mesa-nginx
+    ports:
+      - "80:80" 
+      - "443:443" 
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Optional: for SSL certificates
+      # - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - mesa-network
+    depends_on:
+      - mesa-frontend
+      - mesa-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+networks:
+  mesa-network:
+    driver: bridge
